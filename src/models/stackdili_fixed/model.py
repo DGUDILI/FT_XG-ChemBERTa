@@ -77,8 +77,7 @@ class Model:
             raw[['SMILES', 'Label', 'ref'] + selected_cols].to_csv(features_path, index=False)
 
         # 3. 스태킹 학습 및 평가
-        ga_label = f"GA {self.ga_version}" if self.ga_version else "GA 없음"
-        print(f"[3/3] 스태킹 학습 및 평가  |  Stacking {self.stacking_version}  |  {ga_label}")
+        print("[3/3] 스태킹 학습 및 평가")
         cleaned = pd.read_csv(features_path)
 
         train = cleaned[cleaned['ref'] != 'DILIrank']
@@ -93,6 +92,9 @@ class Model:
         os.makedirs(save_dir, exist_ok=True)
         self.stacking.fit(X_train, y_train, X_test, y_test, save_dir)
         self.stacking.evaluate(X_test, y_test, save_dir)
+
+        ga_label = f"GA {self.ga_version}" if self.ga_version else "GA 없음"
+        print(f"Stacking {self.stacking_version}  |  {ga_label}  |  clean={clean}")
 
     def predict(self, _):
         return None
