@@ -5,10 +5,10 @@ from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.metrics import matthews_corrcoef
 from xgboost import XGBClassifier
 
-from models.stackdili_fixed.ga.base import BaseGA
+from models.stackdili_fixed.ft.base import BaseFT
 
 
-class GAv4_5(BaseGA):
+class FTv4_5(BaseFT):
     """XGBoost + SHAP 기반 피처 선택 (v4.5).
 
     G4의 XGBoost L1/L2 파라미터 탐색 구조를 유지하되,

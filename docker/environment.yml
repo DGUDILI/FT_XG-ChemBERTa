@@ -23,3 +23,5 @@ dependencies:
       - mrmr-selection
       - Boruta
       - shap
+      - transformers
+      - sentencepiece

@@ -4,42 +4,42 @@ import subprocess
 import pandas as pd
 
 from typing import Optional
-from models.stackdili_fixed.ga.base import BaseGA
+from models.stackdili_fixed.ft.base import BaseFT
 from models.stackdili_fixed.stacking.base import BaseStacking
 
 
 class Model:
-    """데이터 정제 → (선택) GA → Stacking 파이프라인 조립기."""
+    """데이터 정제 → (선택) FT → Stacking 파이프라인 조립기."""
 
     def __init__(
         self,
         stacking: BaseStacking,
-        ga: Optional[BaseGA] = None,
+        ft: Optional[BaseFT] = None,
         stacking_version: str = "unknown",
-        ga_version: Optional[str] = None,
+        ft_version: Optional[str] = None,
     ):
         # src/models/stackdili_fixed/ 기준으로 프로젝트 루트 계산
         self.project_root = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         )
-        self.ga               = ga
+        self.ft               = ft
         self.stacking         = stacking
         self.stacking_version = stacking_version
-        self.ga_version       = ga_version
+        self.ft_version       = ft_version
 
     def _restore_features(self, features_path: str) -> None:
         """Feature_raw*.csv → Feature.csv 복원.
 
-        GA가 feature_raw_csv를 지정한 경우 해당 파일을 사용합니다.
+        FT가 feature_raw_csv를 지정한 경우 해당 파일을 사용합니다.
         미지정 시 기본 Feature_raw.csv를 사용합니다.
         """
         features_dir = os.path.dirname(features_path)
-        custom = getattr(self.ga, "feature_raw_csv", None)
+        custom = getattr(self.ft, "feature_raw_csv", None)
         if custom:
             raw_path = os.path.join(features_dir, custom)
             if not os.path.exists(raw_path):
                 raise FileNotFoundError(
-                    f"[오류] GA 전용 피처 파일이 없습니다: {raw_path}\n"
+                    f"[오류] FT 전용 피처 파일이 없습니다: {raw_path}\n"
                     f"  먼저 './run.sh add-features' 를 실행하세요."
                 )
             shutil.copy2(raw_path, features_path)
@@ -55,8 +55,8 @@ class Model:
 
     def _build_save_dir(self, clean: bool) -> str:
         dir_name = f"stacking_{self.stacking_version}"
-        if self.ga_version:
-            dir_name += f"_ga_{self.ga_version}"
+        if self.ft_version:
+            dir_name += f"_ft_{self.ft_version}"
         if clean:
             dir_name += "_clean"
         return os.path.join(
@@ -78,15 +78,14 @@ class Model:
             cleaned_csv = os.path.join(self.project_root, "src", "features", "Feature_cleaned.csv")
             shutil.copy2(cleaned_csv, features_path)
 
-        # 2. GA 피처 선택 (선택 사항)
-        if self.ga is not None:
-            print("[GA] 피처 선택 중...")
+        # 2. FT 피처 선택 (선택 사항)
+        if self.ft is not None:
+            print("[FT] 피처 선택 중...")
             raw = pd.read_csv(features_path)
             train_raw   = raw[raw['ref'] != 'DILIrank']
             X_train_raw = train_raw.drop(['SMILES', 'Label', 'ref'], axis=1)
             y_train_raw = train_raw['Label']
-            selected_cols = self.ga.select_features(X_train_raw, y_train_raw)
-            # GA가 Feature.csv를 직접 수정한 경우(예: GAv5 임베딩 추가)에만 재로드
+            selected_cols = self.ft.select_features(X_train_raw, y_train_raw)
             if not all(c in raw.columns for c in selected_cols):
                 raw = pd.read_csv(features_path)
             raw[['SMILES', 'Label', 'ref'] + selected_cols].to_csv(features_path, index=False)
@@ -108,8 +107,8 @@ class Model:
         self.stacking.fit(X_train, y_train, X_test, y_test, save_dir)
         self.stacking.evaluate(X_test, y_test, save_dir)
 
-        ga_label = f"GA {self.ga_version}" if self.ga_version else "GA 없음"
-        print(f"Stacking {self.stacking_version}  |  {ga_label}  |  clean={clean}")
+        ft_label = f"FT {self.ft_version}" if self.ft_version else "FT 없음"
+        print(f"Stacking {self.stacking_version}  |  {ft_label}  |  clean={clean}")
 
     def predict(self, _):
         return None

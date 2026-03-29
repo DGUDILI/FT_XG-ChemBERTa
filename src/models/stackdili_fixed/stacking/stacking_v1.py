@@ -99,8 +99,12 @@ class StackingV1(BaseStacking):
 
         print("\n[2/2] 메타 모델 (LogisticRegression + 피처 힌트) 학습")
         scaler = StandardScaler()
-        X_meta_train = np.hstack([oof_train, scaler.fit_transform(X_tr_top)])
-        X_meta_test  = np.hstack([oof_test,  scaler.transform(X_te_top)])
+        if len(available_top) > 0:
+            X_meta_train = np.hstack([oof_train, scaler.fit_transform(X_tr_top)])
+            X_meta_test  = np.hstack([oof_test,  scaler.transform(X_te_top)])
+        else:
+            X_meta_train = oof_train
+            X_meta_test  = oof_test
 
         meta_model = LogisticRegression(max_iter=1000, random_state=self.random_seed)
         meta_model.fit(X_meta_train, y_train)
@@ -155,7 +159,10 @@ class StackingV1(BaseStacking):
         with open(os.path.join(save_dir, "best_model_stacking_OOF.pkl"), 'rb') as f:
             meta_model = pickle.load(f)
 
-        X_meta_test = np.hstack([np.column_stack(prob_list), scaler.transform(X_te_top)])
+        if len(available_top) > 0:
+            X_meta_test = np.hstack([np.column_stack(prob_list), scaler.transform(X_te_top)])
+        else:
+            X_meta_test = np.column_stack(prob_list)
 
         print("\n[최종 성능 평가]")
         print("=" * 110)

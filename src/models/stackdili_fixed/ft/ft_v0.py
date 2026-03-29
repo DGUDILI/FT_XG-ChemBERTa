@@ -4,11 +4,11 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
 from deap import base, creator, tools, algorithms
 
-from models.stackdili_fixed.ga.base import BaseGA
+from models.stackdili_fixed.ft.base import BaseFT
 
 
-class GAv0(BaseGA):
-    """원본 StackDILI GA — DEAP 기반 유전 알고리즘 피처 선택 (v0).
+class FTv0(BaseFT):
+    """원본 StackDILI FT — DEAP 기반 유전 알고리즘 피처 선택 (v0).
 
     출처: https://github.com/GGCL7/StackDILI
     변경 없이 원본 로직 그대로 유지.
@@ -67,5 +67,5 @@ class GAv0(BaseGA):
         best = tools.selBest(population, k=1)[0]
         selected_cols = X.columns[[i for i, bit in enumerate(best) if bit == 1]].tolist()
 
-        print(f"GA 선택된 피처 수: {len(selected_cols)}")
+        print(f"FT 선택된 피처 수: {len(selected_cols)}")
         return selected_cols

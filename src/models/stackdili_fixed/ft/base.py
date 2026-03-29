@@ -3,7 +3,7 @@ from typing import Optional
 import pandas as pd
 
 
-class BaseGA(ABC):
+class BaseFT(ABC):
     # 서브클래스에서 재정의하면 해당 파일을 Feature.csv 복원 소스로 사용
     feature_raw_csv: Optional[str] = None
 

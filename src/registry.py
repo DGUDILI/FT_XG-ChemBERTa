@@ -1,25 +1,17 @@
 from typing import Optional
 from models.stackdili_fixed.model import Model
+from models.stackdili_fixed.model_v6 import ModelV6
 
 
-def _load_ga(version: str):
-    """요청된 GA 버전만 import."""
-    if version == "g0":
-        from models.stackdili_fixed.ga.ga_v0 import GAv0
-        return GAv0
-    if version == "g1":
-        from models.stackdili_fixed.ga.ga_v1 import GAv1
-        return GAv1
-    if version == "g4":
-        from models.stackdili_fixed.ga.ga_v4 import GAv4
-        return GAv4
-    if version == "g4.5":
-        from models.stackdili_fixed.ga.ga_v4_5 import GAv4_5
-        return GAv4_5
-    if version == "g5":
-        from models.stackdili_fixed.ga.ga_v5 import GAv5
-        return GAv5
-    raise KeyError(f"GA 버전 '{version}'이 존재하지 않습니다. 가능한 버전: {list(GA_REGISTRY)}")
+def _load_ft(version: str):
+    """요청된 FT 버전만 import."""
+    if version == "f0":
+        from models.stackdili_fixed.ft.ft_v0 import FTv0
+        return FTv0
+    if version == "f4.5":
+        from models.stackdili_fixed.ft.ft_v4_5 import FTv4_5
+        return FTv4_5
+    raise KeyError(f"FT 버전 '{version}'이 존재하지 않습니다. 가능한 버전: {list(FT_REGISTRY)}")
 
 
 def _load_stacking(version: str):
@@ -40,12 +32,10 @@ def _load_stacking(version: str):
 
 
 # train.py의 choices= 에 사용하기 위한 키 목록 (import 없이 반환)
-GA_REGISTRY = {
-    "g0":   None,
-    "g1":   None,
-    "g4":   None,
-    "g4.5": None,
-    "g5":   None,
+FT_REGISTRY = {
+    "f0":   None,
+    "f4.5": None,
+    "f6":   None,   # FTv6: FTv4.5 FP선택 + ChemBERTa + Cross-Attention → 16-dim
 }
 
 STACKING_REGISTRY = {
@@ -56,7 +46,12 @@ STACKING_REGISTRY = {
 }
 
 
-def build_model(stacking_version: str, ga_version: Optional[str] = None) -> Model:
-    ga       = _load_ga(ga_version)() if ga_version else None
+def build_model(stacking_version: str, ft_version: Optional[str] = None):
     stacking = _load_stacking(stacking_version)()
-    return Model(stacking=stacking, ga=ga, stacking_version=stacking_version, ga_version=ga_version)
+
+    # f6는 ModelV6 전용 파이프라인 사용
+    if ft_version == "f6":
+        return ModelV6(stacking=stacking, stacking_version=stacking_version)
+
+    ft = _load_ft(ft_version)() if ft_version else None
+    return Model(stacking=stacking, ft=ft, stacking_version=stacking_version, ft_version=ft_version)
