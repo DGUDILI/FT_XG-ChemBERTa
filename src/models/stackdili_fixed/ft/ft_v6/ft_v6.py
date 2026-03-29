@@ -23,11 +23,21 @@ class _FTv6Encoder(nn.Module):
     HIDDEN   = 16
     CHEM_DIM = 768  # ChemBERTa hidden_size
 
-    def __init__(self, fp_dim: int):
+    def __init__(self, fp_dim: int, attn_mode: str = "fp_query"):
+        """
+        attn_mode:
+            "fp_query"   — exp1: FP→Q,       ChemBERTa→K,V
+            "chem_query" — exp2: ChemBERTa→Q, FP→K,V
+            "bidirect"   — exp3: 양방향 concat → Linear(32, 16)
+        """
         super().__init__()
-        self.fp_proj    = nn.Linear(fp_dim,       self.HIDDEN)
-        self.chem_proj  = nn.Linear(self.CHEM_DIM, self.HIDDEN)
+        self.attn_mode  = attn_mode
+        self.fp_proj    = nn.Linear(fp_dim,        self.HIDDEN)
+        self.chem_proj  = nn.Linear(self.CHEM_DIM,  self.HIDDEN)
         self.cross_attn = CrossAttention(dim=self.HIDDEN, n_heads=4)
+        # exp3 전용: 양방향 결과(32) → 16
+        if attn_mode == "bidirect":
+            self.fusion = nn.Linear(self.HIDDEN * 2, self.HIDDEN)
 
     def forward(self, fp: torch.Tensor, chem_raw: torch.Tensor) -> torch.Tensor:
         """
@@ -39,7 +49,15 @@ class _FTv6Encoder(nn.Module):
         """
         fp_16   = self.fp_proj(fp)           # (B, 16)
         chem_16 = self.chem_proj(chem_raw)   # (B, 16)
-        return self.cross_attn(fp_16, chem_16)
+
+        if self.attn_mode == "fp_query":
+            return self.cross_attn(fp_16, chem_16)          # FP→Q
+        elif self.attn_mode == "chem_query":
+            return self.cross_attn(chem_16, fp_16)          # ChemBERTa→Q
+        else:  # bidirect
+            out_fp   = self.cross_attn(fp_16,   chem_16)    # FP→Q
+            out_chem = self.cross_attn(chem_16, fp_16)      # ChemBERTa→Q
+            return self.fusion(torch.cat([out_fp, out_chem], dim=-1))  # (B, 16)
 
 
 # ---------------------------------------------------------------------------
@@ -63,12 +81,14 @@ class FTv6:
 
     def __init__(
         self,
+        attn_mode:   str   = "fp_query",   # "fp_query" | "chem_query" | "bidirect"
         n_epochs:    int   = 50,
         lr:          float = 1e-3,
         batch_size:  int   = 32,
         random_seed: int   = 42,
         device:      Optional[str] = None,
     ):
+        self.attn_mode   = attn_mode
         self.n_epochs    = n_epochs
         self.lr          = lr
         self.batch_size  = batch_size
@@ -104,7 +124,7 @@ class FTv6:
         )  # (n_train, 768)
 
         # Step 3: 인코더 초기화
-        self._encoder = _FTv6Encoder(fp_dim=fp_dim).to(self.device)
+        self._encoder = _FTv6Encoder(fp_dim=fp_dim, attn_mode=self.attn_mode).to(self.device)
 
         # Step 4: 지도 학습 (ChemBERTa 캐시 사용)
         print(f"[FTv6] Step 3: 인코더 학습 ({self.n_epochs} epochs, device={self.device})")
