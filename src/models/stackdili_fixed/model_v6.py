@@ -19,19 +19,26 @@ class ModelV6:
         → Stacking.fit() / evaluate()
     """
 
+    # attn_mode → ft_version 레이블 매핑
+    _ATTN_LABEL = {
+        "fp_query":   "f6e1",
+        "chem_query": "f6e2",
+        "bidirect":   "f6e3",
+    }
+
     def __init__(
         self,
         stacking: BaseStacking,
         stacking_version: str = "unknown",
-        ft_version: str = "f6",
+        attn_mode: str = "fp_query",
     ):
         self.project_root = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         )
         self.stacking         = stacking
         self.stacking_version = stacking_version
-        self.ft_version       = ft_version
-        self.ft               = FTv6()
+        self.ft_version       = self._ATTN_LABEL.get(attn_mode, "f6")
+        self.ft               = FTv6(attn_mode=attn_mode)
 
     # ------------------------------------------------------------------
 

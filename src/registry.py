@@ -35,7 +35,9 @@ def _load_stacking(version: str):
 FT_REGISTRY = {
     "f0":   None,
     "f4.5": None,
-    "f6":   None,   # FTv6: FTv4.5 FP선택 + ChemBERTa + Cross-Attention → 16-dim
+    "f6e1": None,   # FTv6 exp1: FP→Q,       ChemBERTa→K,V
+    "f6e2": None,   # FTv6 exp2: ChemBERTa→Q, FP→K,V
+    "f6e3": None,   # FTv6 exp3: 양방향 Cross-Attention → concat → Linear(32,16)
 }
 
 STACKING_REGISTRY = {
@@ -49,9 +51,11 @@ STACKING_REGISTRY = {
 def build_model(stacking_version: str, ft_version: Optional[str] = None):
     stacking = _load_stacking(stacking_version)()
 
-    # f6는 ModelV6 전용 파이프라인 사용
-    if ft_version == "f6":
-        return ModelV6(stacking=stacking, stacking_version=stacking_version)
+    # f6e1/e2/e3 는 ModelV6 전용 파이프라인 사용
+    _attn_map = {"f6e1": "fp_query", "f6e2": "chem_query", "f6e3": "bidirect"}
+    if ft_version in _attn_map:
+        return ModelV6(stacking=stacking, stacking_version=stacking_version,
+                       attn_mode=_attn_map[ft_version])
 
     ft = _load_ft(ft_version)() if ft_version else None
     return Model(stacking=stacking, ft=ft, stacking_version=stacking_version, ft_version=ft_version)
